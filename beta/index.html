@@ -97,6 +97,8 @@
       var d = e.data || {};
       if (d.type === 'lbl-session' && /^[0-9a-f]{64}$/.test(String(d.token))) {
         try { localStorage.setItem('lbl_session', d.token); if (d.team) localStorage.setItem('lbl_team', String(d.team)); } catch (x) {}
+        // Reload with the team in the address so the page title and home screen icon are the team's logo.
+        if (d.team && String(d.team).toUpperCase() !== L.t) { location.replace(location.pathname + '?t=' + encodeURIComponent(String(d.team).toUpperCase())); return; }
         f.src = L.exec + '?s=' + d.token;
       } else if (d.type === 'lbl-signout') {
         try { localStorage.removeItem('lbl_session'); } catch (x) {}
