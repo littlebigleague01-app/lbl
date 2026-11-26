@@ -21,13 +21,14 @@
     NYY:['Yankees',147,'#0C2340'], LVA:['Athletics',133,'#003831'], PHI:['Phillies',143,'#E81828'],
     PIT:['Pirates',134,'#27251F'], SD:['Padres',135,'#2F241D'], SF:['Giants',137,'#FD5A1E'],
     SEA:['Mariners',136,'#0C2C56'], STL:['Cardinals',138,'#C41E3A'], TB:['Rays',139,'#092C5C'],
-    TEX:['Rangers',140,'#003278'], TOR:['Blue Jays',141,'#134A8E'], WAS:['Nationals',120,'#AB0003']
+    TEX:['Rangers',140,'#003278'], TOR:['Blue Jays',141,'#134A8E'], WSH:['Nationals',120,'#AB0003']
   };
+  var ALIAS = { WAS: 'WSH' }; // old codes in saved links still pick the right team look
   var EXEC = 'https://script.google.com/macros/s/AKfycbxBsBAHmzOny7Hr3BCYxsBylr3jArnpO0o4JIbugKJUMpotDu-2PzWUYZMUsG5vAeT4/exec';
   var q = new URLSearchParams(location.search);
   var t = String(q.get('t') || '').toUpperCase();
   var k = String(q.get('k') || '');
-  var team = TEAMS[t];
+  var team = TEAMS[ALIAS[t] || t];
   var ua = navigator.userAgent;
   var ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var L = window.LBL = {
