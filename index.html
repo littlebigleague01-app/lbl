@@ -28,13 +28,23 @@
   var q = new URLSearchParams(location.search);
   var t = String(q.get('t') || '').toUpperCase();
   var k = String(q.get('k') || '');
+  // Remember the team link on this device, so the league switch (and a bare /lbl/ address) can reopen it.
+  var sess = '', st = '', sk = '';
+  try { sess = localStorage.getItem('lbl_session') || ''; st = localStorage.getItem('lbl_team') || ''; sk = localStorage.getItem('lbl_key') || ''; } catch (e) {}
+  if (t && k && TEAMS[ALIAS[t] || t]) { try { localStorage.setItem('lbl_team', t); localStorage.setItem('lbl_key', k); } catch (e) {} }
+  else if (!k && st && sk && (!t || t === st.toUpperCase())) { t = st.toUpperCase(); k = sk; }
   var team = TEAMS[ALIAS[t] || t];
+  var src = EXEC + '?t=' + encodeURIComponent(t) + '&k=' + encodeURIComponent(k);
+  var ok = !!(team && k);
+  // Arrived from the OSD app's league switch with no saved LBL link: use a saved sign-in, or the Slack sign-in page.
+  if (!ok && /^[0-9a-f]{64}$/.test(sess)) { ok = true; src = EXEC + '?s=' + sess; }
+  else if (!ok && q.get('switch')) { ok = true; src = EXEC + '?signin=1' + (team ? '&t=' + t : ''); }
   var ua = navigator.userAgent;
   var ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var L = window.LBL = {
-    ok: !!(team && k), name: team ? team[0] : 'LBL', color: team ? team[2] : '#1f2937',
+    ok: ok, t: t, exec: EXEC, name: team ? team[0] : 'LBL', color: team ? team[2] : '#1f2937',
     icon: team ? 'https://midfield.mlbstatic.com/v1/team/' + team[1] + '/spots/256' : '',
-    src: EXEC + '?t=' + encodeURIComponent(t) + '&k=' + encodeURIComponent(k),
+    src: src,
     ios: ios, android: /Android/i.test(ua),
     standalone: window.navigator.standalone === true ||
       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
@@ -58,6 +68,9 @@
   .tip { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(0,0,0,.35); }
   .tip span { flex: 1; }
   .tip button { background: none; border: 0; color: #fff; font-size: 22px; line-height: 1; padding: 4px 6px; cursor: pointer; }
+  .lg { display: flex; align-items: center; gap: 10px; padding: 4px 12px; background: rgba(0,0,0,.35); font-size: 13px; }
+  .lg span { flex: 1; font-weight: 600; opacity: .85; }
+  .lg a { color: #fff; text-decoration: none; font-weight: 600; padding: 3px 10px; border: 1px solid rgba(255,255,255,.5); border-radius: 999px; }
   .msg { padding: 32px 20px; text-align: center; }
 </style>
 </head>
@@ -85,11 +98,45 @@
       };
       document.body.appendChild(tip);
     }
+    // League switch (Nov 27, 2026): owners with a team in both leagues get a slim bar to jump to the
+    // other league inside the same home-screen icon. Shown only when this phone (or this home-screen icon)
+    // already has a saved sign-in for the other league, so nobody keeps a list of who is in both. Links are relative (../osd/, ../lbl/)
+    // so they keep working if the GitHub account is renamed.
+    (function () {
+      var ME = 'lbl', OTHER = ME === 'lbl' ? 'osd' : 'lbl';
+      var NAMES = { lbl: 'LBL', osd: 'OSD' };
+      var saved = '', has = false;
+      try {
+        saved = String(localStorage.getItem(OTHER + '_team') || '').toUpperCase();
+        has = /^[0-9a-f]{64}$/.test(localStorage.getItem(OTHER + '_session') || '') || !!localStorage.getItem(OTHER + '_key');
+      } catch (e) {}
+      if (!has) return;
+      var to = saved;
+      var bar = document.createElement('div');
+      bar.className = 'lg';
+      bar.innerHTML = '<span>' + NAMES[ME] + '</span><a href="../' + OTHER + '/?switch=1' +
+        (to ? '&t=' + encodeURIComponent(to) : '') + '">Switch to ' + NAMES[OTHER] + ' &rsaquo;</a>';
+      document.body.appendChild(bar);
+    })();
     var f = document.createElement('iframe');
     f.src = L.src;
     f.title = L.name;
     f.allow = 'clipboard-write';
     document.body.appendChild(f);
+    // After a Slack sign-in (league switch only), the app page sends the session; keep it on this device.
+    window.addEventListener('message', function (e) {
+      var host = '';
+      try { host = new URL(e.origin).hostname; } catch (x) { return; }
+      if (!/\.googleusercontent\.com$/.test(host)) return;
+      var d = e.data || {};
+      if (d.type === 'lbl-session' && /^[0-9a-f]{64}$/.test(String(d.token))) {
+        try { localStorage.setItem('lbl_session', d.token); if (d.team) localStorage.setItem('lbl_team', String(d.team).toUpperCase()); } catch (x) {}
+        f.src = L.exec + '?s=' + d.token;
+      } else if (d.type === 'lbl-signout') {
+        try { localStorage.removeItem('lbl_session'); } catch (x) {}
+        f.src = L.exec + '?signin=1' + (L.t ? '&t=' + L.t : '');
+      }
+    });
   })();
 </script>
 </body>
